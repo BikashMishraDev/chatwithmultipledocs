@@ -4,11 +4,12 @@ from PyPDF2 import PdfReader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings import OpenAIEmbeddings, HuggingFaceInstructEmbeddings
 from langchain.vectorstores import FAISS
-from langchain.chat_models import ChatOpenAI
+# from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from htmlTemplates import css, bot_template, user_template
 from langchain.llms import HuggingFaceHub
+import time 
 
 def get_pdf_text(pdf_docs):
     text = ""
@@ -31,15 +32,23 @@ def get_text_chunks(text):
 
 
 def get_vectorstore(text_chunks):
-    embeddings = OpenAIEmbeddings()
-    # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
+    # embeddings = OpenAIEmbeddings()
+    embedStart = time.time()
+    embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
+    embedEnd = time.time()
+    st.write("embeding")
+    st.write(embedEnd - embedStart)
+    vectorStart = time.time()
     vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
+    vectorEnd = time.time()
+    st.write("vector")
+    st.write(vectorEnd - vectorStart)
     return vectorstore
 
 
 def get_conversation_chain(vectorstore):
-    llm = ChatOpenAI()
-    # llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512})
+    # llm = ChatOpenAI()
+    llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512})
 
     memory = ConversationBufferMemory(
         memory_key='chat_history', return_messages=True)
@@ -86,18 +95,27 @@ def main():
             "Upload your PDFs here and click on 'Process'", accept_multiple_files=True)
         if st.button("Process"):
             with st.spinner("Processing"):
+                start = time.time()
                 # get pdf text
                 raw_text = get_pdf_text(pdf_docs)
+                end = time.time()
+                st.write(end - start)
 
+                start1 = time.time()
                 # get the text chunks
                 text_chunks = get_text_chunks(raw_text)
+                end1 = time.time()
+                st.write(end1 - start1)
 
                 # create vector store
                 vectorstore = get_vectorstore(text_chunks)
 
+                start2 = time.time()
                 # create conversation chain
                 st.session_state.conversation = get_conversation_chain(
                     vectorstore)
+                end2 = time.time()
+                st.write(end2 - start2)
 
 
 if __name__ == '__main__':
